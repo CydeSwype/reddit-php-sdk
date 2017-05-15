@@ -28,8 +28,8 @@ class reddit{
     
     //access token request scopes
     //full list at http://www.reddit.com/dev/api/oauth
-    private $scopes = 'save modposts identity edit flair history modconfig modflair modlog modposts modwiki mysubreddits privatemessages read report submit subscribe vote wikiedit wikiread';
-    
+    private $scopes = 'save modposts identity edit flair history modconfig modflair modlog modposts modothers moderator_invite modwiki mysubreddits privatemessages read report submit subscribe vote wikiedit wikiread modself';
+
     /**
     * Class Constructor
     *
@@ -37,13 +37,13 @@ class reddit{
     * @link https://github.com/reddit/reddit/wiki/API%3A-login
     */
     public function __construct($client_id,$client_secret){
-                
+
         $this->client_id = $client_id;
         $this->client_secret = $client_secret;
 
         //set API endpoint
         $this->apiHost = $this->endpoint_oauth;
-        
+
         //set auth mode for requests
         $this->auth_mode = 'oauth';
     }
@@ -83,7 +83,7 @@ class reddit{
         //construct POST object for access token fetch request
         $postvals = sprintf("code=%s&grant_type=authorization_code&redirect_uri=%s",
                             $code,$redirect_uri);
-        
+
         //get JSON access token object (with refresh_token parameter)
         $token = self::runCurl($this->endpoint_oauth_token, $postvals, null, true);
 
@@ -101,7 +101,7 @@ class reddit{
         //construct POST object for access token fetch request
         $postvals = sprintf("refresh_token=%s&grant_type=refresh_token",
                             $refresh_token);
-        
+
         //get JSON access token object (with refresh_token parameter)
         $token = self::runCurl($this->endpoint_oauth_token, $postvals, null, true);
 
@@ -122,7 +122,7 @@ class reddit{
         $this->access_token = $token;
         $this->token_type = $token_type;
     }
-    
+
     /**
     * Needs CAPTCHA
     *
@@ -133,7 +133,7 @@ class reddit{
         $urlNeedsCaptcha = "{$this->apiHost}/api/needs_captcha.json";
         return self::runCurl($urlNeedsCaptcha);
     }
-    
+
     /**
     * Get New CAPTCHA
     *
@@ -145,7 +145,7 @@ class reddit{
         $postData = "api_type=json";
         return self::runCurl($urlNewCaptcha, $postData);
     }
-    
+
     /**
     * Get CAPTCHA Image
     *
@@ -157,7 +157,7 @@ class reddit{
         $urlCaptchaImg = "{$this->apiHost}/captcha/$iden";
         return self::runCurl($urlCaptchaImg);
     }
-    
+
     /**
     * Create new story
     *
@@ -169,27 +169,50 @@ class reddit{
     */
     public function createStory($title = null, $link = null, $subreddit = null){
         $urlSubmit = "{$this->apiHost}/api/submit";
-        
+
         //data checks and pre-setup
         if ($title == null || $subreddit == null){ return null; }
         $kind = ($link == null) ? "self" : "link";
-        
+
         $postData = sprintf("kind=%s&sr=%s&title=%s&r=%s",
                             $kind,
                             $subreddit,
                             urlencode($title),
                             $subreddit);
-        
-        //if link was present, add to POST data             
+
+        //if link was present, add to POST data
         if ($link != null){ $postData .= "&url=" . urlencode($link); }
-    
+
         $response = $this->runCurl($urlSubmit, $postData);
-        
+
+        return $response;
+
         /*if ($response->jquery[18][3][0] == "that link has already been submitted"){
             return $response->jquery[18][3][0];
         }*/
     }
-    
+
+   /**
+    * Create new story
+    *
+    * Creates a new story on a particular subreddit
+    * @link https://www.reddit.com/dev/api/#POST_api_friend
+    * @param string $user The title of the story
+    * @param string $link The link that the story should forward to
+    * @param string $subreddit The subreddit where the story should be added
+    */
+    public function createRelationship(){
+        $urlSubmit = "{$this->apiHost}/api/friend";
+
+        $postData = 'container=squallhawk&type=moderator_invite&name=pawboost';
+
+        $response = $this->runCurl($urlSubmit, $postData);
+
+        return $response;
+    }
+
+
+
     /**
     * Get user
     *
@@ -200,7 +223,7 @@ class reddit{
         $urlUser = "{$this->apiHost}/api/v1/me";
         return self::runCurl($urlUser);
     }
-    
+
     /**
     * Get user preferences
     *
@@ -210,15 +233,15 @@ class reddit{
     */
     public function getUserPrefs($fields = null){
         $response = null;
-        
+
         if ($fields){
             $urlUserPrefs = "{$this->apiHost}/api/v1/me/prefs?fields=$fields";
             $response = self::runCurl($urlUserPrefs);
         }
-        
+
         return $response;
     }
-    
+
     /**
     * Get user trophies
     *
@@ -229,7 +252,7 @@ class reddit{
         $urlUserTrophies = "{$this->apiHost}/api/v1/me/trophies";
         return self::runCurl($urlUserTrophies);
     }
-    
+
     /**
     * Get user karma breakdown
     *
@@ -240,7 +263,7 @@ class reddit{
         $urlKarma = "{$this->apiHost}/api/v1/me/karma";
         return self::runCurl($urlKarma);
     }
-    
+
     /**
     * Get friend information
     *
@@ -252,7 +275,7 @@ class reddit{
         $urlFriendInfo = "{$this->apiHost}/api/v1/me/friends/$username";
         return self::runCurl($urlFriendInfo);
     }
-    
+
     /**
     * Get user subreddit relationships
     *
@@ -267,16 +290,16 @@ class reddit{
     public function getSubRel($where = "subscriber", $limit = 25, $after = null, $before = null){
         $qAfter = (!empty($after)) ? "&after=".$after : "";
         $qBefore = (!empty($before)) ? "&before=".$before : "";
-        
+
         $urlSubRel = sprintf("{$this->apiHost}/subreddits/mine/$where?limit=%s%s%s",
                               $where,
                               $limit,
                               $qAfter,
                               $qBefore);
-        
+
         return self::runCurl($urlSubRel);
     }
-    
+
     /**
     * Get messages
     *
@@ -288,7 +311,7 @@ class reddit{
         $urlMessages = "{$this->apiHost}/message/$where";
         return self::runCurl($urlMessages);
     }
-    
+
     /**
     * Send message
     *
@@ -300,15 +323,15 @@ class reddit{
     */
     public function sendMessage($to, $subject, $text){
         $urlMessages = "{$this->apiHost}/api/compose";
-        
+
         $postData = sprintf("to=%s&subject=%s&text=%s",
                             $to,
                             $subject,
                             $text);
-        
+
         return self::runCurl($urlMessages, $postData);
     }
-    
+
     /**
     * Set read / unread message state
     *
@@ -316,57 +339,57 @@ class reddit{
     * @link http://www.reddit.com/dev/api/oauth#POST_api_read_message
     * @link http://www.reddit.com/dev/api/oauth#POST_api_unread_message
     * @param string $state The state to set the messages to, either read or unread
-    * @param string $subject A comma separated list of message fullnames (t4_ and the message id - e.g. t4_1kuinv). 
+    * @param string $subject A comma separated list of message fullnames (t4_ and the message id - e.g. t4_1kuinv).
     */
     public function setMessageState($state = "read", $ids){
         $urlMessageState = "{$this->apiHost}/api/{$state}_message";
         $postData = "id=$ids";
         return self::runCurl($urlMessageState, $postData);
     }
-    
+
     /**
     * Set content block state
     *
     * Sets a given piece of content to a blocked state via the inbox
     * @link http://www.reddit.com/dev/api/oauth#POST_api_block
-    * @param string $id The full name of the content to block (e.g. t4_ and the message id - t4_1kuinv). 
+    * @param string $id The full name of the content to block (e.g. t4_ and the message id - t4_1kuinv).
     */
     public function setContentBlock($id){
         $urlBlockMessage = "{$this->apiHost}/api/block";
         $postData = "id=$id";
         return self::runCurl($urlBlockMessage, $postData);
     }
-    
+
     /**
     * Delete link or comment
     *
     * Deletes a given link or comment created by the user
     * @link http://www.reddit.com/dev/api/oauth#POST_api_del
-    * @param string $id The fullname of the link or comment to delete (e.g. t3_1kuinv for link, t1_1kuinv for comment). 
+    * @param string $id The fullname of the link or comment to delete (e.g. t3_1kuinv for link, t1_1kuinv for comment).
     */
     public function deleteContent($id){
         $urlDelContent = "{$this->apiHost}/api/del";
         $postData = "id=$id";
         return self::runCurl($urlDelContent, $postData);
     }
-    
+
     /**
     * Edit comment or self post
     *
     * Edits the content of a self post or comment created by the user
     * @link http://www.reddit.com/dev/api/oauth#POST_api_editusertext
     * @param string $id The fullname of the link or comment to delete (e.g. t3_1kuinv for link, t1_1kuinv for comment).
-    * @param string $text The raw markdown text to replace the content with. 
+    * @param string $text The raw markdown text to replace the content with.
     */
     public function editContent($id, $text){
         $urlEditContent = "{$this->apiHost}/api/editusertext";
         $postData = sprintf("thing_id=%s&text=%s&api_type=json",
                               $id,
                               $text);
-        
+
         return self::runCurl($urlEditContent, $postData);
     }
-    
+
     /**
     * Set Link Reply State
     *
@@ -380,7 +403,7 @@ class reddit{
         $postData = "id=$id&state=$state";
         return self::runCurl($urlReplyState, $postData);
     }
-    
+
     /**
     * Get user subscriptions
     *
@@ -392,7 +415,7 @@ class reddit{
         $urlSubscriptions = "{$this->apiHost}/subreddits/mine/$where";
         return self::runCurl($urlSubscriptions);
     }
-    
+
     /**
     * Get listing
     *
@@ -410,7 +433,7 @@ class reddit{
         }
         return self::runCurl($urlListing);
     }
-    
+
     /**
     * Search listings
     *
@@ -426,7 +449,7 @@ class reddit{
         $time = (!empty($t)) ? "&t=$t" : "&t=all";
         $qAfter = (!empty($after)) ? "&after=.$after" : "";
         $qBefore = (!empty($before)) ? "&before=.$before" : "";
-        
+
         $urlSearch = sprintf("{$this->apiHost}/r/%s/search?q=%s&count=%d%s%s%s",
                             $subreddit,
                             $query,
@@ -434,10 +457,10 @@ class reddit{
                             $time,
                             $qAfter,
                             $qBefore);
-        
+
         return self::runCurl($urlSearch);
     }
-    
+
     /**
     * Search subreddits
     *
@@ -451,16 +474,16 @@ class reddit{
     public function search_sr($query, $count = 10, $after = null, $before = null){
         $qAfter = (!empty($after)) ? "&after=".$after : "";
         $qBefore = (!empty($before)) ? "&before=".$before : "";
-        
+
         $urlSearch = sprintf("{$this->apiHost}/subreddits/search?q=%s&count=%d%s%s",
                             $query,
                             $count,
                             $qAfter,
                             $qBefore);
-        
+
         return self::runCurl($urlSearch);
     }
-    
+
     /**
     * Get all subreddits
     *
@@ -468,22 +491,22 @@ class reddit{
     * @link http://www.reddit.com/dev/api/oauth#GET_subreddits_{where}
     * @param string $where The fetch method, either new or popular
     * @param int $limit The number of results to return (max 100)
-    * @param string $after The fullname of a post which results should be returned after 
+    * @param string $after The fullname of a post which results should be returned after
     * @param string $before The fullname of a post which results should be returned before
     */
     public function getAllSubs($where = "popular", $limit = 25, $after = null, $before = null){
         $qAfter = (!empty($after)) ? "&after=".$after : "";
         $qBefore = (!empty($before)) ? "&before=".$before : "";
-        
+
         $urlGetAll = sprintf("{$this->apiHost}/subreddits/%s?limit=%d%s%s",
                               $where,
                               $limit,
                               $qAfter,
                               $qBefore);
-        
+
         return self::runCurl($urlGetAll);
     }
-    
+
     /**
     * Get page information
     *
@@ -499,7 +522,7 @@ class reddit{
         }
         return $response;
     }
-    
+
     /**
     * Get Subreddit Text
     *
@@ -515,7 +538,7 @@ class reddit{
         }
         return $response;
     }
-    
+
     /**
     * Get Raw JSON
     *
@@ -525,8 +548,8 @@ class reddit{
     public function getRawJSON($permalink){
         $urlListing = "{$this->apiHost}/{$permalink}.json";
         return self::runCurl($urlListing);
-    }  
-         
+    }
+
     /**
     * Save post
     *
@@ -536,12 +559,12 @@ class reddit{
     * @link http://www.reddit.com/dev/api#POST_api_save
     * @param string $name the full name of the post to save (name parameter
     *                     in the getSubscriptions() return value)
-    * @param string $category the categorty to save the post to                   
+    * @param string $category the categorty to save the post to
     */
     public function savePost($name, $category = null){
         $response = null;
         $cat = (isset($category)) ? "&category=$category" : "";
-        
+
         if ($name){
             $urlSave = "{$this->apiHost}/api/save";
             $postData = "id=$name$cat";
@@ -549,7 +572,7 @@ class reddit{
         }
         return $response;
     }
-    
+
     /**
     * Unsave post
     *
@@ -560,7 +583,7 @@ class reddit{
     */
     public function unsavePost($name){
         $response = null;
-        
+
         if ($name){
             $urlUnsave = "{$this->apiHost}/api/unsave";
             $postData = "id=$name";
@@ -568,7 +591,7 @@ class reddit{
         }
         return $response;
     }
-    
+
     /**
     * Get saved categories
     *
@@ -579,7 +602,7 @@ class reddit{
         $urlSavedCats = "{$this->apiHost}/api/saved_categories";
         return self::runCurl($urlSavedCats);
     }
-    
+
     /**
     * Get historical user data
     *
@@ -592,7 +615,7 @@ class reddit{
         $urlHistory = "{$this->apiHost}/user/$username/$where";
         return self::runCurl($urlHistory);
     }
-    
+
     /**
     * Set post report state
     *
@@ -613,7 +636,7 @@ class reddit{
         }
         return $response;
     }
-    
+
     /**
     * Add new comment
     *
@@ -634,7 +657,7 @@ class reddit{
         }
         return $response;
     }
-    
+
     /**
     * Vote on a story
     *
@@ -654,7 +677,7 @@ class reddit{
         }
         return $response;
     }
-    
+
     /**
     * Set flair
     *
@@ -674,7 +697,7 @@ class reddit{
         $response = self::runCurl($urlFlair, $postData);
         return $response;
     }
-    
+
     /**
     * Get flair list
     *
@@ -694,7 +717,7 @@ class reddit{
         $response = self::runCurl($urlFlairList, $postData);
         return $response;
     }
-    
+
     /**
     * Set flair CSV file
     *
@@ -709,7 +732,7 @@ class reddit{
         $response = self::runCurl($urlFlairCSV, $postData);
         return $response;
     }
-    
+
     /**
     * cURL request
     *
@@ -719,12 +742,15 @@ class reddit{
     * @param string $postVals NVP string to be send with POST request
     */
     private function runCurl($url, $postVals = null, $headers = null, $auth = false){
-        $ch = curl_init($url);
-        
+        $ch = curl_init();
+
         $options = array(
+            CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT => 10
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_VERBOSE => TRUE,
+            CURLOPT_HEADER => TRUE
         );
 
         if ($this->user_agent)
@@ -732,7 +758,7 @@ class reddit{
         else if (!empty($_SERVER['HTTP_USER_AGENT'])){
             $options[CURLOPT_USERAGENT] = $_SERVER['HTTP_USER_AGENT'];
         }
-        
+
         if ($postVals != null){
             $options[CURLOPT_POSTFIELDS] = $postVals;
             $options[CURLOPT_CUSTOMREQUEST] = "POST";
@@ -744,22 +770,23 @@ class reddit{
             $options[CURLOPT_SSLVERSION] = 4;
             $options[CURLOPT_SSL_VERIFYPEER] = false;
             $options[CURLOPT_SSL_VERIFYHOST] = 2;
-        } 
+        }
         else if ($this->auth_mode == 'oauth'){
             $headers = array("Authorization: {$this->token_type} {$this->access_token}");
             $options[CURLOPT_HEADER] = false;
             $options[CURLINFO_HEADER_OUT] = false;
             $options[CURLOPT_HTTPHEADER] = $headers;
         }
-        
+
         curl_setopt_array($ch, $options);
         $apiResponse = curl_exec($ch);
         $response = json_decode($apiResponse);
-        
+
         //check if non-valid JSON is returned
         if ($error = json_last_error()){
-            $response = $apiResponse;    
+            $response = $apiResponse;
         }
+
         curl_close($ch);
         
         return $response;
