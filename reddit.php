@@ -28,7 +28,7 @@ class reddit{
     
     //access token request scopes
     //full list at http://www.reddit.com/dev/api/oauth
-    private $scopes = 'save modposts identity edit flair history modconfig modflair modlog modposts modothers moderator_invite modwiki mysubreddits privatemessages read report submit subscribe vote wikiedit wikiread modself';
+    private $scopes = 'save identity edit flair history modconfig modflair modlog modposts modothers modwiki mysubreddits privatemessages read report submit subscribe vote wikiedit wikiread modself';
 
     /**
     * Class Constructor
